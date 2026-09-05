@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import {
-  getFirestore,
+  initializeFirestore,
   doc,
   getDoc,
   setDoc,
@@ -11,7 +11,12 @@ import {
 import { firebaseConfig } from "./firebaseConfig.js";
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// Algunas redes (móviles, corporativas, con proxy) bloquean el canal de
+// streaming que Firestore usa por defecto y lo hacen ver "offline" aunque
+// haya internet. Forzamos long-polling, que es más compatible con esas redes.
+const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+});
 
 // Uso personal, sin login: todo vive bajo un único espacio de trabajo.
 const WORKSPACE = "principal";
