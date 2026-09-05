@@ -728,17 +728,23 @@ export default function App() {
   const [openCompId, setOpenCompId] = useState(null);
   const [openComp, setOpenComp] = useState(null);
   const [creatingCompYear, setCreatingCompYear] = useState(undefined);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     (async () => {
-      const lib = await loadLibrary();
-      const idx = await loadCompilationIndex();
-      if (lib) {
-        setLibraryState(lib);
-        setView("dashboard");
+      try {
+        const lib = await loadLibrary();
+        const idx = await loadCompilationIndex();
+        if (lib) {
+          setLibraryState(lib);
+          setView("dashboard");
+        }
+        setCompIndex(idx);
+      } catch (e) {
+        setLoadError((e && e.message) || String(e));
+      } finally {
+        setLoading(false);
       }
-      setCompIndex(idx);
-      setLoading(false);
     })();
   }, []);
 
@@ -810,6 +816,12 @@ export default function App() {
 
         {loading && (
           <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: TOKENS.inkSoft }}>cargando…</div>
+        )}
+
+        {loadError && (
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: TOKENS.rust, background: TOKENS.paperDeep, padding: 14, borderRadius: 4, marginBottom: 20 }}>
+            Error al conectar con la base de datos:<br />{loadError}
+          </div>
         )}
 
         {!loading && view === "import" && !rawRows && (
