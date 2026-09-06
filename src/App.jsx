@@ -72,8 +72,6 @@ function detectHeaders(rows) {
   return Array.from(set);
 }
 
-// Best-effort guess of which header maps to which field, based on common
-// Spotify / Apple Music export field names. The user confirms afterward.
 function guessMapping(headers) {
   const lower = headers.map((h) => h.toLowerCase());
   const find = (candidates) => {
@@ -729,6 +727,7 @@ export default function App() {
   const [openComp, setOpenComp] = useState(null);
   const [creatingCompYear, setCreatingCompYear] = useState(undefined);
   const [loadError, setLoadError] = useState("");
+  const [syncError, setSyncError] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -752,16 +751,26 @@ export default function App() {
 
   const handleMappingConfirm = async (mapping) => {
     const plays = buildLibrary(rawRows, mapping);
-    await saveLibrary(mapping, plays);
+    try {
+      await saveLibrary(mapping, plays);
+      setSyncError("");
+    } catch (e) {
+      setSyncError((e && e.message) || String(e));
+    }
     setLibraryState({ mapping, plays });
     setRawRows(null);
     setView("dashboard");
   };
 
   const handleCreateCompilation = async (comp) => {
-    await saveCompilation(comp);
     const newIndex = [{ id: comp.id, title: comp.title, year: comp.year, createdAt: comp.createdAt }, ...compIndex];
-    await saveCompilationIndex(newIndex);
+    try {
+      await saveCompilation(comp);
+      await saveCompilationIndex(newIndex);
+      setSyncError("");
+    } catch (e) {
+      setSyncError((e && e.message) || String(e));
+    }
     setCompIndex(newIndex);
     setCreatingCompYear(undefined);
     setOpenCompId(comp.id);
@@ -770,24 +779,39 @@ export default function App() {
   };
 
   const handleOpenCompilation = async (id) => {
-    const c = await loadCompilation(id);
+    try {
+      const c = await loadCompilation(id);
+      setOpenComp(c);
+      setSyncError("");
+    } catch (e) {
+      setSyncError((e && e.message) || String(e));
+    }
     setOpenCompId(id);
-    setOpenComp(c);
     setView("compilation-detail");
   };
 
   const handleSaveCompilation = async (comp) => {
-    await saveCompilation(comp);
-    setOpenComp(comp);
     const newIndex = compIndex.map((c) => (c.id === comp.id ? { ...c, title: comp.title } : c));
-    await saveCompilationIndex(newIndex);
+    try {
+      await saveCompilation(comp);
+      await saveCompilationIndex(newIndex);
+      setSyncError("");
+    } catch (e) {
+      setSyncError((e && e.message) || String(e));
+    }
+    setOpenComp(comp);
     setCompIndex(newIndex);
   };
 
   const handleDeleteCompilation = async (id) => {
-    await deleteCompilation(id);
     const newIndex = compIndex.filter((c) => c.id !== id);
-    await saveCompilationIndex(newIndex);
+    try {
+      await deleteCompilation(id);
+      await saveCompilationIndex(newIndex);
+      setSyncError("");
+    } catch (e) {
+      setSyncError((e && e.message) || String(e));
+    }
     setCompIndex(newIndex);
   };
 
@@ -821,6 +845,12 @@ export default function App() {
         {loadError && (
           <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: TOKENS.rust, background: TOKENS.paperDeep, padding: 14, borderRadius: 4, marginBottom: 20 }}>
             Error al conectar con la base de datos:<br />{loadError}
+          </div>
+        )}
+
+        {syncError && (
+          <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: TOKENS.rust, background: TOKENS.paperDeep, padding: 14, borderRadius: 4, marginBottom: 20 }}>
+            No se pudo guardar en la nube (sin conexión) — esto solo queda en esta pestaña por ahora, no cierres la página. Se sincronizará cuando tengas internet estable.
           </div>
         )}
 
